@@ -1,0 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Host+Grotesk:ital,wght@0,300..800;1,300..800&display=swap');
+
+body {
+    --back-color: 25, 25, 35;
+    --text-color: 255, 255, 255;
+    --accent-color: 95, 130, 220;
+
+    --success-color: 80, 200, 120;
+    --error-color: 235, 75, 65;
+    --info-color: 50, 140, 230;
+
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: linear-gradient(20deg, rgb(var(--back-color)), rgba(var(--back-color), 0.95));
+    font-family: 'Host Grotesk', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 1rem;
+    color: rgb(var(--text-color));
+}
+
+section {
+    display: none;
+}
+
+section.active {
+    display: block;
+}
+
+header {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    top: 0;
+    width: 100%;
+    padding: 1rem 0;
+    background-color: rgba(var(--text-color), 0.05);
+    backdrop-filter: blur(20px);
+    z-index: 1;
+}
+
+header > div:not(:last-child) {
+    margin-right: 2rem;
+}
+
+header > div {
+    cursor: pointer;
+    opacity: 0.8;
+    transition: 0.1s ease-out;
+}
+
+header > div:hover {
+    opacity: 1;
+}
+
+header > div:active {
+    transform: scale(0.95);
+}
+
+header > div.active {
+    font-weight: bold;
+    opacity: 1;
+}
+
+input[type="text"] {
+    flex: 1;
+    outline: none;
+    border: none;
+    padding: 1rem;
+    border-radius: 1rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 1rem;
+    background-color: rgba(var(--text-color), 0.05);
+    color: rgb(var(--text-color));
+}
+
+#alert {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem 0.5rem 0.5rem 2rem;
+    margin-top: 2rem;
+    border-radius: 1rem;
+    width: fit-content;
+}
+
+#alert.show {
+    display: flex;
+}
+
+#alert.success {
+    background-color: rgba(var(--success-color), 0.7);
+    border: 1px solid rgb(var(--success-color));
+}
+
+#alert.error {
+    background-color: rgba(var(--error-color), 0.7);
+    border: 1px solid rgb(var(--error-color));
+}
+
+#alert.info {
+    background-color: rgba(var(--info-color), 0.7);
+    border: 1px solid rgb(var(--info-color));
+}
+
+#alert .close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    margin-left: 1rem;
+    border-radius: 50%;
+    background-color: rgba(var(--text-color), 0.1);
+    cursor: pointer;
+    transition: 0.1s ease-out;
+}
+
+#alert .close:active {
+    transform: scale(0.9);
+}
