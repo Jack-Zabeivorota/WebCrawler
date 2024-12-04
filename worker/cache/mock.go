@@ -5,26 +5,26 @@ import "main/models"
 type MockCache struct{}
 
 func (MockCache) SetURLsToAllURLs(requestID int64, urls []string) error {
-	print("SET ID: ", requestID, " URLs: ", urls, "\n")
+	println("SET URLs: ", urls, " in all_urls:", requestID)
 	return nil
 }
 
 func (MockCache) SetURLToCompleteds(requestID int64, url, status string, words []string) error {
-	print("SET ID: ", requestID, " URLs: ", url, " Status: ", status, " Words: ", words, "\n")
+	println("SET URL: ", url, " in completed_urls:", requestID, " with status: ", status, " and words: ", words)
 	return nil
 }
 
 func (MockCache) URLIsCompleted(requestID int64, url string) (bool, error) {
-	print("Exists ", url, " in ", requestID, "\n")
+	println("Exists ", url, " in completed_urls:", requestID)
 	return true, nil
 }
 
-func (MockCache) GetNotCompletedURLs(requestID int64, urls []string) ([]string, error) {
-	print("ID: ", requestID, " Urls: ", urls, "\n")
+func (MockCache) GetNotProcessedURLs(requestID int64, urls []string) ([]string, error) {
+	println("GET not found URLs in all_urls:", requestID)
 	return []string{}, nil
 }
 
 func (MockCache) GetRequestData(requestID int64) (*models.RequestData, error) {
-	print("Get data from ", requestID, "\n")
+	println("Get data from requests_data ", requestID)
 	return &models.RequestData{}, nil
 }

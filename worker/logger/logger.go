@@ -25,7 +25,7 @@ func Instance() *Logger {
 
 func Init(logsDir string) {
 	os.MkdirAll(logsDir, os.ModePerm)
-	file, err := os.OpenFile(logsDir+".log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(logsDir+"worker.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 
 	if err != nil {
 		stdlog.Fatalln("Open file for logs error: ", err)

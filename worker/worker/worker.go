@@ -149,7 +149,12 @@ func (w *Worker) retry(msg *models.FindWordsMsg) (bool, error) {
 	return true, w.broker.Send(models.FindWordsTopic, msg)
 }
 
-func (w *Worker) getPage(msg *models.FindWordsMsg) *rod.Page {
+func (w *Worker) callAggregator(msg *models.FindWordsMsg) error {
+	AggMsg := models.AggregateResultMsg{RequestID: msg.RequestID}
+	return w.broker.Send(models.AggregateResultTopic, AggMsg)
+}
+
+func (w *Worker) getPage(msg *models.FindWordsMsg) (*rod.Page, error) {
 	page := w.browser.MustPage()
 
 	page.SetUserAgent(&proto.NetworkSetUserAgentOverride{
@@ -169,25 +174,51 @@ func (w *Worker) getPage(msg *models.FindWordsMsg) *rod.Page {
 
 		ok, err := w.retry(msg)
 
-		if err == nil && !ok {
-			w.cache.SetURLToCompleteds(msg.RequestID, msg.URL, "fail", []string{})
+		if err != nil {
+			return nil, err
 		}
 
-		return nil
+		if !ok {
+			err = w.cache.SetURLToCompleteds(msg.RequestID, msg.URL, "fail", []string{})
+
+			if err != nil {
+				return nil, err
+			}
+
+			err = w.callAggregator(msg)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return nil, nil
 	}
 
 	err = page.WaitLoad()
 
 	if err != nil {
-		w.cache.SetURLToCompleteds(msg.RequestID, msg.URL, "unreaded", []string{})
 		w.log.Error(
 			"Request %d -> Getting document from %s loading error: %v",
 			msg.RequestID, msg.URL, err,
 		)
-		return nil
+
+		err = w.cache.SetURLToCompleteds(msg.RequestID, msg.URL, "unreaded", []string{})
+
+		if err != nil {
+			return nil, err
+		}
+
+		err = w.callAggregator(msg)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, nil
 	}
 
-	return page
+	return page, nil
 }
 
 func (w *Worker) findURLs(page *rod.Page, currUrl string, sameDomainOnly bool) []string {
@@ -207,15 +238,18 @@ func (w *Worker) findURLs(page *rod.Page, currUrl string, sameDomainOnly bool) [
 			if url[0] == '/' {
 				url = domain + url
 			} else {
+				url = strings.TrimRight(url, "/")
+
+				if strings.HasSuffix(currUrl, url) {
+					continue
+				}
 				url = fmt.Sprintf("%s/%s", currUrl, url)
 			}
-		}
-
-		if sameDomainOnly && !strings.HasPrefix(url, domain) {
+		} else if sameDomainOnly && !strings.HasPrefix(url, domain) {
 			continue
 		}
 
-		index := strings.LastIndex(url, "#")
+		index := strings.Index(url, "/#")
 
 		if index != -1 {
 			url = url[:index]
@@ -227,8 +261,7 @@ func (w *Worker) findURLs(page *rod.Page, currUrl string, sameDomainOnly bool) [
 			url = url[:index]
 		}
 
-		url = strings.TrimRight(url, "/")
-		urls = append(urls, url)
+		urls = append(urls, strings.TrimRight(url, "/"))
 	}
 
 	return urls
@@ -269,13 +302,6 @@ func (w *Worker) urlsToFindWordsMsgs(requestID int64, urls []string) []any {
 	})
 }
 
-func (w *Worker) callAggregator(msg *models.FindWordsMsg) error {
-	AggMsg := models.AggregateResultMsg{RequestID: msg.RequestID}
-	err := w.broker.Send(models.AggregateResultTopic, AggMsg)
-	w.log.Info("Has been already completed 'handler' for request %d, URL %s", msg.RequestID, msg.URL)
-	return err
-}
-
 func (w *Worker) handler(data []byte) {
 	w.log.Info("Start 'handler'")
 
@@ -289,23 +315,23 @@ func (w *Worker) handler(data []byte) {
 		return
 	}
 
-	isCompleted, err := w.cache.URLIsCompleted(msg.RequestID, msg.URL)
+	isFinded, err := w.cache.URLIsCompleted(msg.RequestID, msg.URL)
 
 	if err != nil {
 		return
 	}
 
-	if isCompleted {
+	if isFinded {
+		w.log.Info("Has been already completed 'handler' for request %d, URL %s", msg.RequestID, msg.URL)
 		w.callAggregator(&msg)
 		return
 	}
 
 	// get page from URL
 
-	page := w.getPage(&msg)
+	page, err := w.getPage(&msg)
 
-	if page == nil {
-		w.callAggregator(&msg)
+	if err != nil || page == nil {
 		return
 	}
 
@@ -319,10 +345,17 @@ func (w *Worker) handler(data []byte) {
 		return
 	}
 
-	// find anchecked urls and words
+	// find and send anchecked urls
 
 	urls := w.findURLs(page, msg.URL, requestData.SameDomainOnly)
-	urls, err = w.cache.GetNotCompletedURLs(msg.RequestID, urls)
+	urls, err = w.cache.GetNotProcessedURLs(msg.RequestID, urls)
+
+	if err != nil {
+		return
+	}
+
+	messages := w.urlsToFindWordsMsgs(msg.RequestID, urls)
+	err = w.broker.Send(models.FindWordsTopic, messages...)
 
 	if err != nil {
 		return
@@ -334,33 +367,20 @@ func (w *Worker) handler(data []byte) {
 		return
 	}
 
+	// find words and send result tp completed
+
 	findedWords := w.findWords(page, requestData.Words)
 
-	// send messages
+	err = w.cache.SetURLToCompleteds(msg.RequestID, msg.URL, "success", findedWords)
 
-	if len(urls) > 0 {
-		messages := w.urlsToFindWordsMsgs(msg.RequestID, urls)
-		err = w.broker.Send(models.FindWordsTopic, messages...)
+	if err != nil {
+		return
+	}
 
-		if err != nil {
-			return
-		}
-
-		err = w.cache.SetURLToCompleteds(msg.RequestID, msg.URL, "success", findedWords)
-
-		if err != nil {
-			return
-		}
-	} else {
-		err = w.cache.SetURLToCompleteds(msg.RequestID, msg.URL, "success", findedWords)
-
-		if err != nil {
-			return
-		}
-
-		if w.callAggregator(&msg) != nil {
-			return
-		}
+	if len(urls) == 0 {
+		w.log.Info("Completed 'handler' for request %d: Potentially last URL %s", msg.RequestID, msg.URL)
+		w.callAggregator(&msg)
+		return
 	}
 
 	w.log.Info("Completed 'handler' for request %d, URL %s", msg.RequestID, msg.URL)

@@ -119,22 +119,26 @@ func (app *App) addRequest(c echo.Context) error {
 	urlData := models.URLData{}
 	err := c.Bind(&urlData)
 
-	if err != nil || urlData.URL == "" || len(urlData.Words) == 0 {
+	var validWords []string
+
+	if err == nil {
+		urlData.URL = strings.TrimRight(urlData.URL, "/")
+
+		validWords = make([]string, 0, len(urlData.Words))
+
+		for _, word := range urlData.Words {
+			if word != "" {
+				validWords = append(validWords, strings.ToLower(word))
+			}
+		}
+	}
+
+	if err != nil || urlData.URL == "" || len(validWords) == 0 {
 		app.log.Debug(
 			"Incorrect parameters: wordsLen: %d, URL: %s, error: %v",
 			len(urlData.Words), urlData.URL, err,
 		)
 		return c.JSON(400, jsonMsg("Incorrect parameters"))
-	}
-
-	// making words lower
-
-	validWords := make([]string, 0, len(urlData.Words))
-
-	for _, word := range urlData.Words {
-		if word != "" {
-			validWords = append(validWords, strings.ToLower(word))
-		}
 	}
 
 	// additing request data in DB and cache

@@ -91,9 +91,9 @@ func (rc *RedisCache) URLIsCompleted(requestID int64, url string) (bool, error) 
 	return exists, err
 }
 
-func (rc *RedisCache) GetNotCompletedURLs(requestID int64, urls []string) ([]string, error) {
+func (rc *RedisCache) GetNotProcessedURLs(requestID int64, urls []string) ([]string, error) {
 	ctx := context.Background()
-	id := fmt.Sprintf("completed_urls:%d", requestID)
+	id := fmt.Sprintf("all_urls:%d", requestID)
 	notExistsUrls := []string{}
 
 	var exists bool
@@ -101,12 +101,12 @@ func (rc *RedisCache) GetNotCompletedURLs(requestID int64, urls []string) ([]str
 
 	for _, url := range urls {
 		tools.RetryCycle(func() error {
-			exists, err = rc.client.HExists(ctx, id, url).Result()
+			exists, err = rc.client.SIsMember(ctx, id, url).Result()
 			return err
 		}, "Redis fail try", false)
 
 		if err != nil {
-			rc.log.Error("Getting not completed URLs error: %v", err)
+			rc.log.Error("Getting not found in all_urls error: %v", err)
 			return []string{}, err
 		}
 
@@ -135,12 +135,12 @@ func (rc *RedisCache) GetRequestData(requestID int64) (*models.RequestData, erro
 		return nil, err
 	}
 
-	requestData := models.RequestData{}
-	err = json.Unmarshal(data, &requestData)
+	requestData := &models.RequestData{}
+	err = json.Unmarshal(data, requestData)
 
 	if err != nil {
 		rc.log.Error("Getting request data error: %v", err)
 	}
 
-	return &requestData, err
+	return requestData, err
 }
