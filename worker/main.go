@@ -8,6 +8,11 @@ import (
 )
 
 func main() {
-	logger.Init(os.Getenv("LOGS_DIR"))
+	logger.Init(logger.LoggerConfig{
+		ServiceName:  "Worker-" + os.Getenv("ID"),
+		Level:        "INFO",
+		LogsDir:      os.Getenv("LOGS_DIR"),
+		LogstashHost: os.Getenv("LOGSTASH_HOST"),
+	})
 	worker.New().Run()
 }

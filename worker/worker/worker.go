@@ -52,7 +52,7 @@ func New() *Worker {
 	id, err := strconv.Atoi(os.Getenv("ID"))
 
 	if err != nil {
-		log.Fatal("ID is not specified")
+		id = 1
 	}
 
 	taskRecepients, err := strconv.Atoi(os.Getenv("TASK_RECEPIENTS"))

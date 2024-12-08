@@ -41,7 +41,7 @@ func New() *App {
 	id, err := strconv.Atoi(os.Getenv("ID"))
 
 	if err != nil {
-		log.Fatal("ID is not specified")
+		id = 1
 	}
 
 	app := &App{

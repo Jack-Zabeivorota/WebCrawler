@@ -1,6 +1,6 @@
-version: '3.9'
-
 services:
+  # Domain services
+
   main:
     build:
       context: ./main/docker
@@ -13,13 +13,12 @@ services:
       POSTGRES_CONN: host=postgres port=5432 user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable
       REDIS_HOST: redis:6379
       KAFKA_HOSTS: kafka:9092
-      LOGS_DIR: /var/log/services_logs/
-    volumes:
-      - ./docker-compose/logs:/var/log/services_logs
+      LOGSTASH_HOST: http://logstash:8080
     depends_on:
       - redis
       - kafka
       - postgres
+      - logstash
   
   worker:
     build:
@@ -31,12 +30,11 @@ services:
       SEARCH_CHROMIUM: yes
       REDIS_HOST: redis:6379
       KAFKA_HOSTS: kafka:9092
-      LOGS_DIR: /var/log/services_logs/
-    volumes:
-      - ./docker-compose/logs:/var/log/services_logs
+      LOGSTASH_HOST: http://logstash:8080
     depends_on:
       - redis
       - kafka
+      - logstash
   
   aggregator:
     build:
@@ -48,13 +46,12 @@ services:
       POSTGRES_CONN: host=postgres port=5432 user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable
       REDIS_HOST: redis:6379
       KAFKA_HOSTS: kafka:9092
-      LOGS_DIR: /var/log/services_logs/
-    volumes:
-      - ./docker-compose/logs:/var/log/services_logs
+      LOGSTASH_HOST: http://logstash:8080
     depends_on:
       - redis
       - kafka
       - postgres
+      - logstash
 
   controller:
     build:
@@ -66,11 +63,12 @@ services:
     environment:
       PASSWORD_HASH: ${CONTROLLER_PASSWORD_HASH}
       KAFKA_HOSTS: kafka:9092
-      LOGS_DIR: /var/log/services_logs/
-    volumes:
-      - ./docker-compose/logs:/var/log/services_logs
+      LOGSTASH_HOST: http://logstash:8080
     depends_on:
       - kafka
+      - logstash
+
+  # Other services
 
   redis:
     image: redis:5.0.14
@@ -93,7 +91,7 @@ services:
       KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       ALLOW_PLAINTEXT_LISTENER: yes
     volumes:
-      - ./docker-compose/kafka:/bitnami/kafka
+      - ./volumes/kafka:/bitnami/kafka
 
   postgres:
     image: postgres:17.0
@@ -104,4 +102,35 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./docker-compose/db-data:/var/lib/postgresql/data
+      - ./volumes/db-data:/var/lib/postgresql/data
+
+  # ELK
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: false
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./volumes/es-data:/usr/share/elasticsearch/data
+  
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.10.2
+    volumes:
+      - ./volumes/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - "9600:9600"   # Monitoring
+      - "8080:8080"   # Lisening HTTP-requests
+    depends_on:
+      - elasticsearch
+  
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.2
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
