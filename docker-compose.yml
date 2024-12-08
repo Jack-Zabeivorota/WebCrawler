@@ -1,0 +1,107 @@
+version: '3.9'
+
+services:
+  main:
+    build:
+      context: ./main/docker
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      ID: 1
+      POSTGRES_CONN: host=postgres port=5432 user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable
+      REDIS_HOST: redis:6379
+      KAFKA_HOSTS: kafka:9092
+      LOGS_DIR: /var/log/services_logs/
+    volumes:
+      - ./docker-compose/logs:/var/log/services_logs
+    depends_on:
+      - redis
+      - kafka
+      - postgres
+  
+  worker:
+    build:
+      context: ./worker/docker
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      ID: 1
+      SEARCH_CHROMIUM: yes
+      REDIS_HOST: redis:6379
+      KAFKA_HOSTS: kafka:9092
+      LOGS_DIR: /var/log/services_logs/
+    volumes:
+      - ./docker-compose/logs:/var/log/services_logs
+    depends_on:
+      - redis
+      - kafka
+  
+  aggregator:
+    build:
+      context: ./aggregator/docker
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      ID: 1
+      POSTGRES_CONN: host=postgres port=5432 user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable
+      REDIS_HOST: redis:6379
+      KAFKA_HOSTS: kafka:9092
+      LOGS_DIR: /var/log/services_logs/
+    volumes:
+      - ./docker-compose/logs:/var/log/services_logs
+    depends_on:
+      - redis
+      - kafka
+      - postgres
+
+  controller:
+    build:
+      context: ./controller/docker
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      PASSWORD_HASH: ${CONTROLLER_PASSWORD_HASH}
+      KAFKA_HOSTS: kafka:9092
+      LOGS_DIR: /var/log/services_logs/
+    volumes:
+      - ./docker-compose/logs:/var/log/services_logs
+    depends_on:
+      - kafka
+
+  redis:
+    image: redis:5.0.14
+    ports:
+      - "6379:6379"
+  
+  kafka:
+    image: bitnami/kafka:3.8.0
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_KRAFT_CLUSTER_ID: a5511d35bda943e98418c2
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@localhost:9091
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9090,CONTROLLER://:9091,EXTERNAL://:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9090,EXTERNAL://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      ALLOW_PLAINTEXT_LISTENER: yes
+    volumes:
+      - ./docker-compose/kafka:/bitnami/kafka
+
+  postgres:
+    image: postgres:17.0
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker-compose/db-data:/var/lib/postgresql/data

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="static/css/base.css">
+    <link rel="stylesheet" href="static/css/sections.css">
+
+    <script src="static/js/base.js"></script>
+
+    <title>Web crawler</title>
+</head>
+<body>
+
+    <header>
+        <div class="active">Create request</div>
+        <div>Check request</div>
+        <div>Delete request</div>
+    </header>
+
+    <section id="create-request" class="active">
+
+        <div class="field-block">
+            <div class="title">Enter your URL</div>
+            <div class="field">
+                <input type="text" name="url-field" placeholder="https://exapmle.com">
+                <div class="submit">Enter</div>
+            </div>
+        </div>
+        
+        <div class="words-block">
+            <div class="title">Enter search words</div>
+            <input type="text" name="words-field" placeholder="sun, boots, mars">
+        </div>
+
+        <div class="same-domain-block">
+            <label class="checkbox">
+                <input type="checkbox" name="same-domain-only" checked>
+                <div class="flag"></div>
+                <div class="label">Same domain only</div>
+            </label>
+        </div>
+            
+    </section>
+
+    <section id="check-request">
+
+        <div class="field-block">
+            <div class="title">Enter your request ID</div>
+            <div class="field">
+                <input type="text" name="id-field" placeholder="5387">
+                <div class="submit">Check</div>
+            </div>
+        </div>
+
+        <div class="info-block hide">
+            <table class="labels"></table>
+
+            <label class="checkbox show-all-urls">
+                <input type="checkbox" name="show-all-urls">
+                <div class="flag"></div>
+                <div class="label">Show all finded URLs</div>
+            </label>
+
+            <table class="results"></table>
+        </div>
+
+    </section>
+
+    <section id="delete-request">
+
+        <div class="field-block">
+            <div class="title">Enter your request ID</div>
+            <div class="field">
+                <input type="text" name="id-field" placeholder="5387">
+                <div class="submit">Delete</div>
+            </div>
+        </div>
+
+    </section>
+
+    <center>
+        <div id="alert">
+            <div class="message">Your request ID: 5873</div>
+            <div class="close">⨉</div>
+        </div>
+    </center>
+
+</body>
+</html>
